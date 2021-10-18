@@ -4,25 +4,27 @@ declare(strict_types=1);
 
 namespace MamadouAlySy;
 
-use Closure;
 use Psr\Container\ContainerInterface;
 use ReflectionClass;
+use ReflectionException;
 
 class Container implements ContainerInterface
 {
     public function __construct(
         protected array $entries = []
     ) {
-        //
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function get(string $id)
     {
         if ($this->has($id)) {
             return $this->entries[$id];
         }
 
-        return $this->autowire($id);
+        return $this->autoWire($id);
     }
 
     public function has(string $id): bool
@@ -37,7 +39,10 @@ class Container implements ContainerInterface
             : new $id;
     }
 
-    public function autowire(string $id)
+    /**
+     * @throws ReflectionException
+     */
+    public function autoWire(string $id): object
     {
         $reflectedClass = new ReflectionClass($id);
         $constructor = $reflectedClass->getConstructor();

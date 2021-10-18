@@ -38,13 +38,11 @@ class ContainerTest extends TestCase
         );
     }
 
-    public function testCanGetAnEntryByAutowire()
+    public function testCanGetAnEntryByAutoWire()
     {
-        $container = new Container();
-
         $this->assertInstanceOf(
             expected: C::class,
-            actual: $container->get(C::class)
+            actual: $this->container->get(C::class)
         );
     }
 }
