@@ -7,6 +7,7 @@ use MamadouAlySy\Tests\Stubs\A;
 use MamadouAlySy\Tests\Stubs\B;
 use MamadouAlySy\Tests\Stubs\C;
 use PHPUnit\Framework\TestCase;
+use ReflectionException;
 
 class ContainerTest extends TestCase
 {
@@ -17,7 +18,10 @@ class ContainerTest extends TestCase
         parent::setUp();
         $this->container = new Container();
     }
-    
+
+    /**
+     * @throws ReflectionException
+     */
     public function testCanRegisterAnEntryAnGetIt()
     {
         $this->container->register(A::class);
@@ -28,6 +32,9 @@ class ContainerTest extends TestCase
         );
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function testCanRegisterAnEntryWithCallableAnGetIt()
     {
         $this->container->register(B::class, fn () => new B(new A));
@@ -38,6 +45,9 @@ class ContainerTest extends TestCase
         );
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function testCanGetAnEntryByAutoWire()
     {
         $this->assertInstanceOf(
