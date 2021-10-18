@@ -12,4 +12,9 @@ class C
     ) {
         //
     }
+
+    public function process(): string
+    {
+        return 'success';
+    }
 }

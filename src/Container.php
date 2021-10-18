@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace MamadouAlySy;
 
+use MamadouAlySy\Exceptions\MethodResolverException;
 use Psr\Container\ContainerInterface;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionMethod;
+use ReflectionParameter;
 
 class Container implements ContainerInterface
 {
@@ -52,6 +55,32 @@ class Container implements ContainerInterface
             return $reflectedClass->newInstanceWithoutConstructor();
         }
         $parameters = $constructor->getParameters();
+        $dependencies = $this->getDependencies($parameters);
+        return $reflectedClass->newInstanceArgs($dependencies);
+    }
+
+    /**
+     * @throws MethodResolverException|ReflectionException
+     */
+    public function resolveMethod(string $class, string $method): mixed
+    {
+        $object = $this->get($class);
+        $reflectedClass = new ReflectionClass($object);
+        if ($reflectedClass->hasMethod($method) && $reflectedClass->getMethod($method)->isPublic()) {
+            $parameters = $reflectedClass->getMethod($method)->getParameters();
+            $dependencies = $this->getDependencies($parameters);
+            return call_user_func_array([$object, $method], $dependencies);
+        }
+        throw new MethodResolverException("can not resolve method $method make sure that it exists an it's public");
+    }
+
+    /**
+     * @param ReflectionParameter[] $parameters
+     * @return array
+     * @throws ReflectionException
+     */
+    private function getDependencies(array $parameters): array
+    {
         $dependencies = [];
         foreach ($parameters as $parameter) {
             if ($parameter->allowsNull()) {
@@ -62,6 +91,6 @@ class Container implements ContainerInterface
                 $dependencies[$parameter->getName()] = $this->get($parameter->getType()->getName());
             }
         }
-        return $reflectedClass->newInstanceArgs($dependencies);
+        return $dependencies;
     }
 }

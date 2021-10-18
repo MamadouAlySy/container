@@ -3,6 +3,7 @@
 namespace MamadouAlySy\Tests;
 
 use MamadouAlySy\Container;
+use MamadouAlySy\Exceptions\MethodResolverException;
 use MamadouAlySy\Tests\Stubs\A;
 use MamadouAlySy\Tests\Stubs\B;
 use MamadouAlySy\Tests\Stubs\C;
@@ -63,5 +64,25 @@ class ContainerTest extends TestCase
     {
         $this->container->get(C::class);
         $this->assertTrue(condition: $this->container->has(C::class));
+    }
+
+    /**
+     * @throws ReflectionException|MethodResolverException
+     */
+    public function testCanResolveMethod()
+    {
+        $this->assertEquals(
+            expected: 'success',
+            actual: $this->container->resolveMethod(C::class, 'process')
+        );
+    }
+
+    /**
+     * @throws ReflectionException|MethodResolverException
+     */
+    public function testWillThrowMethodResolverException()
+    {
+        $this->expectException(MethodResolverException::class);
+        $this->container->resolveMethod(C::class, 'unknown');
     }
 }
