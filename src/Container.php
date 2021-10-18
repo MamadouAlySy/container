@@ -24,7 +24,9 @@ class Container implements ContainerInterface
             return $this->entries[$id];
         }
 
-        return $this->autoWire($id);
+        $this->entries[$id] = $this->autoWire($id);
+
+        return $this->entries[$id];
     }
 
     public function has(string $id): bool

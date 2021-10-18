@@ -55,4 +55,13 @@ class ContainerTest extends TestCase
             actual: $this->container->get(C::class)
         );
     }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testCanSaveAnEntryAfterAutoWire()
+    {
+        $this->container->get(C::class);
+        $this->assertTrue(condition: $this->container->has(C::class));
+    }
 }
