@@ -12,8 +12,6 @@ This package is a simple php dependency container.
 
 It can register object and retrieve them it can also autowire an object if it is not registered
 
-The package can convert the extracted documentation into a file in Markdown format.
-
 ## Installation
 
 ### Composer
@@ -50,5 +48,3 @@ $container->register(\MamadouAlySy\QueryBuilder::class, function() {
 // this will return always the same instance of \MamadouAlySy\QueryBuilder::class
 $container->get(\MamadouAlySy\QueryBuilder::class);
 ```
-
-## CoreClass
