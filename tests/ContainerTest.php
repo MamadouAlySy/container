@@ -89,6 +89,6 @@ class ContainerTest extends TestCase
     public function testCanSaveAnObjectAsAnEntry()
     {
         $this->container->save(new A);
-        $this->assertTrue($this->container->has(A::class)); 
+        $this->assertTrue($this->container->has(A::class));
     }
 }
