@@ -85,4 +85,10 @@ class ContainerTest extends TestCase
         $this->expectException(MethodResolverException::class);
         $this->container->resolveMethod(C::class, 'unknown');
     }
+    
+    public function testCanSaveAnObjectAsAnEntry()
+    {
+        $this->container->save(new A);
+        $this->assertTrue($this->container->has(A::class));
+    }
 }
