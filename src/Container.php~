@@ -93,11 +93,4 @@ class Container implements ContainerInterface
         }
         return $dependencies;
     }
-    
-    public function save(object $object): void
-    {
-        $reflectedClass = new ReflectionClass($object);
-        $name = $reflectedClass->getName();
-        $this->entries[$name] = $object;
-    }
 }
