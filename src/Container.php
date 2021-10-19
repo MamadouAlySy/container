@@ -11,6 +11,15 @@ use ReflectionException;
 use ReflectionMethod;
 use ReflectionParameter;
 
+/**
+ * @package container
+ * @method object get(string $id)
+ * @method bool has(string $id)
+ * @method void register(string $id, ?callable $callable = null)
+ * @method object autoWire(string $id)
+ * @method mixed resolveMethod(string $class, string $method)
+ * @method void save(object $object)
+ */
 class Container implements ContainerInterface
 {
     public function __construct(
@@ -19,9 +28,14 @@ class Container implements ContainerInterface
     }
 
     /**
+     * Get an entry
+     * Note: if the entry is not registered it will autowire the entry
+     *
+     * @param string $id
+     * @return object
      * @throws ReflectionException
      */
-    public function get(string $id)
+    public function get(string $id): object
     {
         if ($this->has($id)) {
             return $this->entries[$id];
@@ -32,12 +46,26 @@ class Container implements ContainerInterface
         return $this->entries[$id];
     }
 
+    /**
+     * Undocumented function
+     *
+     * @param string $id
+     * @return boolean
+     */
     public function has(string $id): bool
     {
         return array_key_exists($id, $this->entries);
     }
 
-    public function register(string $id, ?callable $callable = null)
+    /**
+     * Register an entry with callable
+     * Note: if the callable is not provided it will create automatically the object
+     *
+     * @param string $id
+     * @param callable|null $callable
+     * @return void
+     */
+    public function register(string $id, ?callable $callable = null): void
     {
         $this->entries[$id] = $callable
             ? call_user_func_array($callable, [$this])
@@ -45,6 +73,10 @@ class Container implements ContainerInterface
     }
 
     /**
+     * Undocumented function
+     *
+     * @param string $id
+     * @return object
      * @throws ReflectionException
      */
     public function autoWire(string $id): object
@@ -60,6 +92,11 @@ class Container implements ContainerInterface
     }
 
     /**
+     * Undocumented function
+     *
+     * @param string $class
+     * @param string $method
+     * @return mixed
      * @throws MethodResolverException|ReflectionException
      */
     public function resolveMethod(string $class, string $method): mixed
@@ -94,6 +131,12 @@ class Container implements ContainerInterface
         return $dependencies;
     }
     
+    /**
+     * Undocumented function
+     *
+     * @param object $object
+     * @return void
+     */
     public function save(object $object): void
     {
         $reflectedClass = new ReflectionClass($object);
