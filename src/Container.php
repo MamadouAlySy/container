@@ -21,7 +21,7 @@ class Container implements ContainerInterface
     /**
      * @inheritDoc
      */
-    public function get(string $id)
+    public function get(string $id): mixed
     {
         if ($this->has($id)) {
             $entry = $this->entries[$id];
