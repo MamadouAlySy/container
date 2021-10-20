@@ -4,53 +4,46 @@ declare(strict_types=1);
 
 namespace MamadouAlySy;
 
-use MamadouAlySy\Exceptions\MethodResolverException;
+use JetBrains\PhpStorm\Pure;
+use MamadouAlySy\Exceptions\ContainerException;
+use MamadouAlySy\Exceptions\NotFoundException;
 use Psr\Container\ContainerInterface;
 use ReflectionClass;
 use ReflectionException;
-use ReflectionMethod;
+use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionUnionType;
 
-/**
- * @package container
- * @method object get(string $id)
- * @method bool has(string $id)
- * @method void register(string $id, ?callable $callable = null)
- * @method object autoWire(string $id)
- * @method mixed resolveMethod(string $class, string $method)
- * @method void save(object $object)
- */
 class Container implements ContainerInterface
 {
-    public function __construct(
-        protected array $entries = []
-    ) {
-    }
+    private array $entries = [];
 
     /**
-     * Get an entry
-     * Note: if the entry is not registered it will autowire the entry
-     *
-     * @param string $id
-     * @return object
-     * @throws ReflectionException
+     * @inheritDoc
      */
-    public function get(string $id): object
+    public function get(string $id)
     {
         if ($this->has($id)) {
-            return $this->entries[$id];
+            $entry = $this->entries[$id];
+            if (is_callable($entry)) {
+                return call_user_func_array($entry, [$this]);
+            }
+            $id = $entry;
         }
 
-        $this->entries[$id] = $this->autoWire($id);
+        if (!class_exists($id)) {
+            throw new NotFoundException("No entry was found for $id");
+        }
 
-        return $this->entries[$id];
+        try {
+            return $this->resolve($id);
+        } catch (ReflectionException $e) {
+            throw new ContainerException($e->getMessage());
+        }
     }
 
     /**
-     * Undocumented function
-     *
-     * @param string $id
-     * @return boolean
+     * @inheritDoc
      */
     public function has(string $id): bool
     {
@@ -58,89 +51,103 @@ class Container implements ContainerInterface
     }
 
     /**
-     * Register an entry with callable
-     * Note: if the callable is not provided it will create automatically the object
-     *
      * @param string $id
-     * @param callable|null $callable
-     * @return void
+     * @param callable|string $resolver
      */
-    public function register(string $id, ?callable $callable = null): void
+    public function set(string $id, callable|string $resolver): void
     {
-        $this->entries[$id] = $callable
-            ? call_user_func_array($callable, [$this])
-            : new $id;
+        $this->entries[$id] = $resolver;
     }
 
     /**
-     * Undocumented function
-     *
      * @param string $id
      * @return object
+     * @throws ContainerException
      * @throws ReflectionException
      */
-    public function autoWire(string $id): object
+    public function resolve(string $id): object
     {
-        $reflectedClass = new ReflectionClass($id);
-        $constructor = $reflectedClass->getConstructor();
-        if (is_null($constructor)) {
-            return $reflectedClass->newInstanceWithoutConstructor();
+        // 1. Inspect the class that we are trying to get from the container
+        $reflectionClass = new ReflectionClass($id);
+        if (!$reflectionClass->isInstantiable()) {
+            throw new ContainerException("Class $id is not instantiable.");
         }
-        $parameters = $constructor->getParameters();
-        $dependencies = $this->getDependencies($parameters);
-        return $reflectedClass->newInstanceArgs($dependencies);
-    }
 
-    /**
-     * Undocumented function
-     *
-     * @param string $class
-     * @param string $method
-     * @return mixed
-     * @throws MethodResolverException|ReflectionException
-     */
-    public function resolveMethod(string $class, string $method): mixed
-    {
-        $object = $this->get($class);
-        $reflectedClass = new ReflectionClass($object);
-        if ($reflectedClass->hasMethod($method) && $reflectedClass->getMethod($method)->isPublic()) {
-            $parameters = $reflectedClass->getMethod($method)->getParameters();
-            $dependencies = $this->getDependencies($parameters);
-            return call_user_func_array([$object, $method], $dependencies);
+        // 2. Inspect the constructor of the class
+        $constructor = $reflectionClass->getConstructor();
+        if (!$constructor) {
+            return $reflectionClass->newInstanceWithoutConstructor();
         }
-        throw new MethodResolverException("can not resolve method $method make sure that it exists an it's public");
+
+        // 3. Inspect the constructor parameters (dependencies)
+        $parameters = $constructor->getParameters();
+        if (!$parameters) {
+            return $reflectionClass->newInstance();
+        }
+
+        // 4. If the constructor parameter is a class try to resole that class from the container
+        $dependencies = $this->resolveDependencies($parameters);
+        
+        return $reflectionClass->newInstanceArgs($dependencies);
     }
 
     /**
      * @param ReflectionParameter[] $parameters
-     * @return array
-     * @throws ReflectionException
+     * @return object[]
+     * @throws ContainerException
      */
-    private function getDependencies(array $parameters): array
+    public function resolveDependencies(array $parameters): array
     {
-        $dependencies = [];
-        foreach ($parameters as $parameter) {
-            if ($parameter->allowsNull()) {
-                $dependencies[$parameter->getName()] = null;
-            } elseif ($parameter->isDefaultValueAvailable()) {
-                $dependencies[$parameter->getName()] = $parameter->getDefaultValue();
-            } else {
-                $dependencies[$parameter->getName()] = $this->get($parameter->getType()->getName());
+        return array_map(function (ReflectionParameter $param) {
+
+            $this->verifyParameter($param);
+
+            list($name, $type, $parentClass) = $this->getParameterInfo($param);
+
+            if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
+                return $this->get($type->getName());
             }
-        }
-        return $dependencies;
+
+            throw new ContainerException(
+                "Failed to resolve class $parentClass because of invalid param $name"
+            );
+
+        }, $parameters);
     }
-    
+
     /**
-     * Undocumented function
-     *
-     * @param object $object
-     * @return void
+     * @param ReflectionParameter $param
+     * @throws ContainerException
      */
-    public function save(object $object): void
+    public function verifyParameter(ReflectionParameter $param): void
     {
-        $reflectedClass = new ReflectionClass($object);
-        $name = $reflectedClass->getName();
-        $this->entries[$name] = $object;
+        list($name, $type, $parentClass) = $this->getParameterInfo($param);
+
+        if (!$type) {
+            throw new ContainerException(
+                "Failed to resolve class $parentClass because param $name is missing a type hint."
+            );
+        }
+
+        if ($type instanceof ReflectionUnionType) {
+            throw new ContainerException(
+                "Failed to resolve class $parentClass because of union type for param $name."
+            );
+        }
+    }
+
+
+    /**
+     * @param ReflectionParameter $param
+     * @return array[name, type, parentClass]
+     */
+    #[Pure]
+    public function getParameterInfo(ReflectionParameter $param): array
+    {
+        return [
+            $param->getName(),
+            $param->getType(),
+            $param->getDeclaringClass()->getName()
+        ];
     }
 }
