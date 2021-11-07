@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MamadouAlySy;
 
+use Exception;
 use JetBrains\PhpStorm\Pure;
 use MamadouAlySy\Exceptions\ContainerException;
 use MamadouAlySy\Exceptions\NotFoundException;
@@ -17,12 +18,17 @@ use ReflectionUnionType;
 class Container implements ContainerInterface
 {
     private array $entries = [];
+    private array $singletons = [];
 
     /**
      * @inheritDoc
      */
     public function get(string $id): mixed
     {
+        if ($this->isSingleton($id)) {
+            return $this->singletons[$id];
+        }
+
         if ($this->has($id)) {
             $entry = $this->entries[$id];
             if (is_callable($entry)) {
@@ -50,6 +56,11 @@ class Container implements ContainerInterface
         return array_key_exists($id, $this->entries);
     }
 
+    public function isSingleton(string $id): bool
+    {
+        return array_key_exists($id, $this->singletons);
+    }
+
     /**
      * @param string $id
      * @param callable|string $resolver
@@ -57,6 +68,21 @@ class Container implements ContainerInterface
     public function set(string $id, callable|string $resolver): void
     {
         $this->entries[$id] = $resolver;
+    }
+
+    /**
+     * @param string $id
+     * @param callable|string|object $resolver
+     * @throws ContainerException
+     * @throws ReflectionException
+     */
+    public function makeSingleton(string $id, callable|string|object $resolver): void
+    {
+        $this->singletons[$id] = match(true) {
+            is_string($resolver) => $this->resolve($resolver),
+            is_callable($resolver) => call_user_func_array($resolver, [$this]),
+            default => $resolver
+        };
     }
 
     /**
@@ -119,7 +145,7 @@ class Container implements ContainerInterface
      * @param ReflectionParameter $param
      * @throws ContainerException
      */
-    public function verifyParameter(ReflectionParameter $param): void
+    private function verifyParameter(ReflectionParameter $param): void
     {
         list($name, $type, $parentClass) = $this->getParameterInfo($param);
 
@@ -136,13 +162,14 @@ class Container implements ContainerInterface
         }
     }
 
-
     /**
+     * Returns the parameter name, type and the parent class name
+     *
      * @param ReflectionParameter $param
      * @return array[name, type, parentClass]
      */
     #[Pure]
-    public function getParameterInfo(ReflectionParameter $param): array
+    private function getParameterInfo(ReflectionParameter $param): array
     {
         return [
             $param->getName(),
