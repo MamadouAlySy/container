@@ -25,6 +25,10 @@ class Container implements ContainerInterface
      */
     public function get(string $id): mixed
     {
+        if ($id == $this::class) {
+            return $this;
+        }
+
         if ($this->isSingleton($id)) {
             return $this->singletons[$id];
         }
