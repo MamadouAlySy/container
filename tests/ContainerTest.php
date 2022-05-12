@@ -69,4 +69,19 @@ class ContainerTest extends TestCase
             actual: spl_object_id($foo2)
         );
     }
+
+    /**
+     * @throws ContainerException
+     * @throws ReflectionException
+     */
+    public function testCanResolveItSelf()
+    {
+
+        $container = $this->container->get(Container::class);
+
+        $this->assertSame(
+            expected: spl_object_id($container),
+            actual: spl_object_id($container)
+        );
+    }
 }
